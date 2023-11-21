@@ -6,7 +6,7 @@ import { deploy } from './ethers-lib'
 
 (async () => {
   try {
-    const result = await deploy('RewardTokensFactoryV1', [])
+    const result = await deploy('RWRD', [])
     console.log(`address: ${result.address}`)
   } catch (e) {
     console.log(e.message)
