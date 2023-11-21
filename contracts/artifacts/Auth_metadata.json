@@ -109,7 +109,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"contracts/Reward.sol": "Auth"
+			"contracts/RWRD.sol": "Auth"
 		},
 		"evmVersion": "istanbul",
 		"libraries": {},
@@ -123,12 +123,12 @@
 		"remappings": []
 	},
 	"sources": {
-		"contracts/Reward.sol": {
-			"keccak256": "0x33bfe6fbafb70b8ad6d65047577b47a6cae1f91081a150461675ed3a03417e5f",
+		"contracts/RWRD.sol": {
+			"keccak256": "0x1fb57fffaa342278a7948a1f1bbc26aa47c2f6be252d6e95201c5685834e3e5b",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://3a5068f265cedd9e8a3ecee5187f36f50c92cc6c12e97fde3ac8cb5a23f64872",
-				"dweb:/ipfs/QmebjCQq9Z1g3qnLUAxe6dzURT5yYmhcCmMtityqZVnSXq"
+				"bzz-raw://3b95c72220421cb82a7fea7907043eab61d1803989f4055f8c9afb445c4842d4",
+				"dweb:/ipfs/QmPUeWrRWkgCe7UvzGvZ8R5fR5fNwN2oD367WVi2zzCtRw"
 			]
 		}
 	},
