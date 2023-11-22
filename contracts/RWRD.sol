@@ -381,26 +381,16 @@ contract RWRD is IBEP20, Auth {
     mapping (address => bool) isExcludedFromMaxWallet;
 
     struct Fees {
-        uint256 buyLiquidityTax;
-        uint256 sellLiquidityTax;
-        uint256 buyReflectionTax;
-        uint256 sellReflectionTax;
-        uint256 buyMarketingTax;
-        uint256 sellMarketingTax;
-        uint256 buyRewardsTax;
-        uint256 sellRewardsTax;
+        uint256 liquidityTax;
+        uint256 reflectionTax;
+        uint256 marketingTax;
+        uint256 rewardTax;
     }
 
-    uint256 public buyLiquidityTax;
-    uint256 public sellLiquidityTax;
-    uint256 public buyReflectionTax;
-    uint256 public sellReflectionTax;
-    uint256 public buyMarketingTax;
-    uint256 public sellMarketingTax;
-    uint256 public buyRewardsTax;
-    uint256 public sellRewardsTax;
-    uint256 public totalBuyTax;
-    uint256 public totalSellTax;
+    uint256 public liquidityTax;
+    uint256 public reflectionTax;
+    uint256 public marketingTax;
+    uint256 public rewardTax;
     uint256 public totalTax;
     uint256 public feeDenominator  = 100;
 
@@ -442,17 +432,11 @@ contract RWRD is IBEP20, Auth {
         _symbol = symbol_;
         _totalSupply = _supply;
 
-        buyLiquidityTax = fees.buyLiquidityTax;
-        sellLiquidityTax = fees.sellLiquidityTax;
-        buyReflectionTax = fees.buyReflectionTax;
-        sellReflectionTax = fees.sellReflectionTax;
-        buyMarketingTax = fees.buyMarketingTax;
-        sellMarketingTax = fees.sellMarketingTax;
-        buyRewardsTax = fees.buyRewardsTax;
-        sellRewardsTax = fees.sellRewardsTax;
-        totalBuyTax = buyLiquidityTax + buyReflectionTax + buyMarketingTax + buyRewardsTax;
-        totalSellTax = sellLiquidityTax + sellReflectionTax + sellMarketingTax + sellRewardsTax;
-        totalTax = totalBuyTax + totalSellTax;
+        liquidityTax = fees.liquidityTax;
+        reflectionTax = fees.reflectionTax;
+        marketingTax = fees.marketingTax;
+        rewardTax = fees.rewardTax;
+        totalTax = liquidityTax + reflectionTax + marketingTax + rewardTax;
 
         TEAM = team_wallet;
         marketingToken = marketing_token;
@@ -489,7 +473,7 @@ contract RWRD is IBEP20, Auth {
         isExcludedFromReflections[address(TEAM)] = false;
         isExcludedFromReflections[DEAD] = true;
 
-        autoLiquidityReceiver = address(TEAM);
+        autoLiquidityReceiver = msg.sender;
         marketingTaxWallet = address(TEAM);
 
         _balances[msg.sender] = _totalSupply;
@@ -661,8 +645,8 @@ contract RWRD is IBEP20, Auth {
     }
 
     function swapBack() internal swapping {
-        uint256 dynamicLiquidityFee = isOverLiquified(targetLiquidity, targetLiquidityDenominator) ? 0 : sellLiquidityTax;
-        uint256 amountToLiquify = swapThreshold.mul(dynamicLiquidityFee).div(totalSellTax).div(2);
+        uint256 dynamicLiquidityFee = isOverLiquified(targetLiquidity, targetLiquidityDenominator) ? 0 : liquidityTax;
+        uint256 amountToLiquify = swapThreshold.mul(dynamicLiquidityFee).div(totalTax).div(2);
         uint256 amountToSwap = swapThreshold.sub(amountToLiquify);
 
         address[] memory path = new address[](2);
@@ -681,13 +665,13 @@ contract RWRD is IBEP20, Auth {
 
         uint256 amountBNB = address(this).balance.sub(balanceBefore);
 
-        uint256 totalBNBFee = totalSellTax.sub(dynamicLiquidityFee.div(2));
+        uint256 totalBNBFee = totalTax.sub(dynamicLiquidityFee.div(2));
         
         uint256 amountBNBLiquidity = amountBNB.mul(dynamicLiquidityFee).div(totalBNBFee).div(2);
-        uint256 amountBNBReflection = amountBNB.mul(sellReflectionTax).div(totalBNBFee);
-        uint256 amountBNBReward = amountBNB.mul(sellRewardsTax).div(totalBNBFee);
-        uint256 amountBNBMarketing = amountBNB.mul(sellMarketingTax).div(totalBNBFee);
-
+        uint256 amountBNBReflection = amountBNB.mul(reflectionTax).div(totalBNBFee);
+        uint256 amountBNBReward = amountBNB.mul(rewardTax).div(totalBNBFee);
+        uint256 amountBNBMarketing = amountBNB.mul(marketingTax).div(totalBNBFee);
+    
         try distributor.depositReflections{value: amountBNBReflection}() {} catch {}
         try distributor.depositRewards{value: amountBNBReward}() {} catch {}
         
@@ -762,17 +746,11 @@ contract RWRD is IBEP20, Auth {
     }
 
     function setFees(Fees memory fees, uint256 _feeDenominator) external authorized {
-        buyLiquidityTax = fees.buyLiquidityTax;
-        sellLiquidityTax = fees.sellLiquidityTax;
-        buyReflectionTax = fees.buyReflectionTax;
-        sellReflectionTax = fees.sellReflectionTax;
-        buyMarketingTax = fees.buyMarketingTax;
-        sellMarketingTax = fees.sellMarketingTax;
-        buyRewardsTax = fees.buyRewardsTax;
-        sellRewardsTax = fees.sellRewardsTax;
-        totalBuyTax = buyLiquidityTax + buyReflectionTax + buyMarketingTax + buyRewardsTax;
-        totalSellTax = sellLiquidityTax + sellReflectionTax + sellMarketingTax + sellRewardsTax;
-        totalTax = totalBuyTax + totalSellTax;
+       liquidityTax = fees.liquidityTax;
+        reflectionTax = fees.reflectionTax;
+        marketingTax = fees.marketingTax;
+        rewardTax = fees.rewardTax;
+        totalTax = liquidityTax + reflectionTax + marketingTax + rewardTax;
         feeDenominator = _feeDenominator;
         require(totalTax < feeDenominator/3, "Fees cannot be more than 33%");
     }

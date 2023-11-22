@@ -26,42 +26,22 @@
 						"components": [
 							{
 								"internalType": "uint256",
-								"name": "buyLiquidityTax",
+								"name": "liquidityTax",
 								"type": "uint256"
 							},
 							{
 								"internalType": "uint256",
-								"name": "sellLiquidityTax",
+								"name": "reflectionTax",
 								"type": "uint256"
 							},
 							{
 								"internalType": "uint256",
-								"name": "buyReflectionTax",
+								"name": "marketingTax",
 								"type": "uint256"
 							},
 							{
 								"internalType": "uint256",
-								"name": "sellReflectionTax",
-								"type": "uint256"
-							},
-							{
-								"internalType": "uint256",
-								"name": "buyMarketingTax",
-								"type": "uint256"
-							},
-							{
-								"internalType": "uint256",
-								"name": "sellMarketingTax",
-								"type": "uint256"
-							},
-							{
-								"internalType": "uint256",
-								"name": "buyRewardsTax",
-								"type": "uint256"
-							},
-							{
-								"internalType": "uint256",
-								"name": "sellRewardsTax",
+								"name": "rewardTax",
 								"type": "uint256"
 							}
 						],
@@ -335,58 +315,6 @@
 				"type": "function"
 			},
 			{
-				"inputs": [],
-				"name": "buyLiquidityTax",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "buyMarketingTax",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "buyReflectionTax",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "buyRewardsTax",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
 				"inputs": [
 					{
 						"internalType": "uint256",
@@ -622,6 +550,19 @@
 				"type": "function"
 			},
 			{
+				"inputs": [],
+				"name": "liquidityTax",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
 				"inputs": [
 					{
 						"internalType": "address[]",
@@ -637,6 +578,19 @@
 				"name": "manage_blacklist",
 				"outputs": [],
 				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "marketingTax",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
 				"type": "function"
 			},
 			{
@@ -726,6 +680,32 @@
 			},
 			{
 				"inputs": [],
+				"name": "reflectionTax",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "rewardTax",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
 				"name": "router",
 				"outputs": [
 					{
@@ -739,59 +719,7 @@
 			},
 			{
 				"inputs": [],
-				"name": "sellLiquidityTax",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "sellMarketingTax",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
 				"name": "sellMultiplier",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "sellReflectionTax",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "sellRewardsTax",
 				"outputs": [
 					{
 						"internalType": "uint256",
@@ -857,42 +785,22 @@
 						"components": [
 							{
 								"internalType": "uint256",
-								"name": "buyLiquidityTax",
+								"name": "liquidityTax",
 								"type": "uint256"
 							},
 							{
 								"internalType": "uint256",
-								"name": "sellLiquidityTax",
+								"name": "reflectionTax",
 								"type": "uint256"
 							},
 							{
 								"internalType": "uint256",
-								"name": "buyReflectionTax",
+								"name": "marketingTax",
 								"type": "uint256"
 							},
 							{
 								"internalType": "uint256",
-								"name": "sellReflectionTax",
-								"type": "uint256"
-							},
-							{
-								"internalType": "uint256",
-								"name": "buyMarketingTax",
-								"type": "uint256"
-							},
-							{
-								"internalType": "uint256",
-								"name": "sellMarketingTax",
-								"type": "uint256"
-							},
-							{
-								"internalType": "uint256",
-								"name": "buyRewardsTax",
-								"type": "uint256"
-							},
-							{
-								"internalType": "uint256",
-								"name": "sellRewardsTax",
+								"name": "rewardTax",
 								"type": "uint256"
 							}
 						],
@@ -1166,32 +1074,6 @@
 			},
 			{
 				"inputs": [],
-				"name": "totalBuyTax",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
-				"name": "totalSellTax",
-				"outputs": [
-					{
-						"internalType": "uint256",
-						"name": "",
-						"type": "uint256"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
 				"name": "totalSupply",
 				"outputs": [
 					{
@@ -1354,11 +1236,11 @@
 	},
 	"sources": {
 		"contracts/RWRD.sol": {
-			"keccak256": "0x814c413b4020f0dce5a3d59dab15b4cf0f06cfe9fa1009f0ae4eaeabdbf40578",
+			"keccak256": "0x7bf98d3c59cbb99e31afc142242a4f0de2534a85688c2a984858295339070bc0",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://67f56934115637c291d73294060b48530867e1ce5c81352bc64607212922fac4",
-				"dweb:/ipfs/QmfEAcggKFBaPSSVF1HtAKZoV4faHc29XHs9JNA4h81HtJ"
+				"bzz-raw://7f389557d349acba8f9aa421863fd86b8a716588e07bcd73110b092a42d1eb7a",
+				"dweb:/ipfs/QmUsDKFkxbLS9Ak7LKPvBrqytsThvz5EWHMsMWsPoNhXwg"
 			]
 		}
 	},
