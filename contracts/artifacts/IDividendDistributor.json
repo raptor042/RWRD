@@ -47,7 +47,8 @@
 		},
 		"gasEstimates": null,
 		"methodIdentifiers": {
-			"deposit()": "d0e30db0",
+			"depositReflections()": "de353ecb",
+			"depositRewards()": "152111f7",
 			"process(uint256)": "ffb2c479",
 			"setDistributionCriteria(uint256,uint256)": "2d48e896",
 			"setShare(address,uint256)": "14b6ca96"
@@ -56,7 +57,14 @@
 	"abi": [
 		{
 			"inputs": [],
-			"name": "deposit",
+			"name": "depositReflections",
+			"outputs": [],
+			"stateMutability": "payable",
+			"type": "function"
+		},
+		{
+			"inputs": [],
+			"name": "depositRewards",
 			"outputs": [],
 			"stateMutability": "payable",
 			"type": "function"

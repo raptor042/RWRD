@@ -1,7 +1,3 @@
-/**
- *Submitted for verification at BscScan.com on 2023-06-23
-*/
-
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.7.6;
@@ -160,7 +156,8 @@ interface IDEXRouter {
 interface IDividendDistributor {
     function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution) external;
     function setShare(address shareholder, uint256 amount) external;
-    function deposit() external payable;
+    function depositRewards() external payable;
+    function depositReflections() external payable;
     function process(uint256 gas) external;
 }
 
@@ -176,6 +173,7 @@ contract DividendDistributor is IDividendDistributor {
     }
 
     IBEP20 Reward;
+    IBEP20 Token;
     address WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
     IDEXRouter router;
 
@@ -207,10 +205,11 @@ contract DividendDistributor is IDividendDistributor {
         require(msg.sender == _token); _;
     }
 
-    constructor (address reward_token) {
-        router = IDEXRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
+    constructor (address reward_token, address token) {
+        router = IDEXRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
         _token = msg.sender;
         Reward = IBEP20(reward_token);
+        Token = IBEP20(token);
     }
 
     function setDistributionCriteria(uint256 _minPeriod, uint256 _minDistribution) external override onlyToken {
@@ -234,7 +233,7 @@ contract DividendDistributor is IDividendDistributor {
         shares[shareholder].totalExcluded = getCumulativeDividends(shares[shareholder].amount);
     }
 
-    function deposit() external payable override onlyToken {
+    function depositRewards() external payable override onlyToken {
         uint256 balanceBefore = Reward.balanceOf(address(this));
 
         address[] memory path = new address[](2);
@@ -249,6 +248,26 @@ contract DividendDistributor is IDividendDistributor {
         );
 
         uint256 amount = Reward.balanceOf(address(this)).sub(balanceBefore);
+
+        totalDividends = totalDividends.add(amount);
+        dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
+    }
+
+    function depositReflections() external payable override onlyToken {
+        uint256 balanceBefore = Reward.balanceOf(address(this));
+
+        address[] memory path = new address[](2);
+        path[0] = WBNB;
+        path[1] = address(Token);
+
+        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: msg.value}(
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+
+        uint256 amount = Token.balanceOf(address(this)).sub(balanceBefore);
 
         totalDividends = totalDividends.add(amount);
         dividendsPerShare = dividendsPerShare.add(dividendsPerShareAccuracyFactor.mul(amount).div(totalShares));
@@ -336,6 +355,7 @@ contract RWRD is IBEP20, Auth {
     address DEAD = 0x000000000000000000000000000000000000dEaD;
     address ZERO = 0x0000000000000000000000000000000000000000;
     address TEAM;
+    address marketingToken;
 
     string _name;
     string _symbol;
@@ -352,30 +372,42 @@ contract RWRD is IBEP20, Auth {
     mapping (address => bool) public isBlacklisted;
 
 
-    mapping (address => bool) isFeeExempt;
-    mapping (address => bool) isTxLimitExempt;
-    mapping (address => bool) isTimelockExempt;
-    mapping (address => bool) isDividendExempt;
+    mapping (address => bool) isExcludedFromFees;
+    mapping (address => bool) isExcludedFromTx;
+    mapping (address => bool) isExcludedFromRewards;
+    mapping (address => bool) isExcludedFromTimeLock;
+    mapping (address => bool) isExcludedFromReflections;
+    mapping (address => bool) isExcludedFromMaxTx;
+    mapping (address => bool) isExcludedFromMaxWallet;
 
     struct Fees {
-        uint256 liquidityFee;
-        uint256 reflectionFee;
-        uint256 marketingFee;
-        uint256 teamFee;
+        uint256 buyLiquidityTax;
+        uint256 sellLiquidityTax;
+        uint256 buyReflectionTax;
+        uint256 sellReflectionTax;
+        uint256 buyMarketingTax;
+        uint256 sellMarketingTax;
+        uint256 buyRewardsTax;
+        uint256 sellRewardsTax;
     }
 
-    uint256 public liquidityFee;
-    uint256 public reflectionFee;
-    uint256 public marketingFee;
-    uint256 public teamFee;
-    uint256 public totalFee = marketingFee + reflectionFee + liquidityFee + teamFee;
+    uint256 public buyLiquidityTax;
+    uint256 public sellLiquidityTax;
+    uint256 public buyReflectionTax;
+    uint256 public sellReflectionTax;
+    uint256 public buyMarketingTax;
+    uint256 public sellMarketingTax;
+    uint256 public buyRewardsTax;
+    uint256 public sellRewardsTax;
+    uint256 public totalBuyTax;
+    uint256 public totalSellTax;
+    uint256 public totalTax;
     uint256 public feeDenominator  = 100;
 
     uint256 public sellMultiplier  = 737;
 
     address public autoLiquidityReceiver;
-    address public marketingFeeReceiver;
-    address public teamFeeReceiver;
+    address public marketingTaxWallet;
 
     uint256 targetLiquidity = 20;
     uint256 targetLiquidityDenominator = 100;
@@ -403,45 +435,62 @@ contract RWRD is IBEP20, Auth {
         uint256 _supply,
         Fees memory fees,
         address rwrd_token,
-        address team_wallet
+        address team_wallet,
+        address marketing_token
     ) Auth(msg.sender) {
         _name = name_;
         _symbol = symbol_;
         _totalSupply = _supply;
 
-        liquidityFee = fees.liquidityFee;
-        reflectionFee = fees.reflectionFee;
-        marketingFee = fees.marketingFee;
-        teamFee = fees.teamFee;
+        buyLiquidityTax = fees.buyLiquidityTax;
+        sellLiquidityTax = fees.sellLiquidityTax;
+        buyReflectionTax = fees.buyReflectionTax;
+        sellReflectionTax = fees.sellReflectionTax;
+        buyMarketingTax = fees.buyMarketingTax;
+        sellMarketingTax = fees.sellMarketingTax;
+        buyRewardsTax = fees.buyRewardsTax;
+        sellRewardsTax = fees.sellRewardsTax;
+        totalBuyTax = buyLiquidityTax + buyReflectionTax + buyMarketingTax + buyRewardsTax;
+        totalSellTax = sellLiquidityTax + sellReflectionTax + sellMarketingTax + sellRewardsTax;
+        totalTax = totalBuyTax + totalSellTax;
 
         TEAM = team_wallet;
+        marketingToken = marketing_token;
 
-        router = IDEXRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
+        router = IDEXRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
         pair = IDEXFactory(router.factory()).createPair(WBNB, address(this));
         _allowances[address(this)][address(router)] = uint256(-1);
 
-        distributor = new DividendDistributor(address(rwrd_token));
+        distributor = new DividendDistributor(address(rwrd_token), address(this));
 
-        isFeeExempt[msg.sender] = true;
-        isFeeExempt[address(TEAM)] = true;
-        isTxLimitExempt[msg.sender] = true;
-        isTxLimitExempt[address(TEAM)] = true;
+        isExcludedFromFees[msg.sender] = true;
+        isExcludedFromFees[address(TEAM)] = true;
 
-        isTimelockExempt[msg.sender] = true;
-        isTimelockExempt[address(TEAM)] = true;
-        isTimelockExempt[DEAD] = true;
-        isTimelockExempt[address(this)] = true;
-        isTimelockExempt[address(TEAM)] = true;
+        isExcludedFromMaxTx[msg.sender] = true;
+        isExcludedFromMaxTx[address(TEAM)] = true;
 
-        isDividendExempt[pair] = true;
-        isDividendExempt[address(router)] = true;
-        isDividendExempt[address(this)] = true;
-        isDividendExempt[address(TEAM)] = false;
-        isDividendExempt[DEAD] = true;
+        isExcludedFromMaxWallet[msg.sender] = true;
+        isExcludedFromMaxWallet[address(TEAM)] = true;
 
-        autoLiquidityReceiver = msg.sender;
-        marketingFeeReceiver = msg.sender;
-        teamFeeReceiver = address(TEAM);
+        isExcludedFromTimeLock[msg.sender] = true;
+        isExcludedFromTimeLock[address(TEAM)] = true;
+        isExcludedFromTimeLock[DEAD] = true;
+        isExcludedFromTimeLock[address(this)] = true;
+
+        isExcludedFromRewards[pair] = true;
+        isExcludedFromRewards[address(router)] = true;
+        isExcludedFromRewards[address(this)] = true;
+        isExcludedFromRewards[address(TEAM)] = false;
+        isExcludedFromRewards[DEAD] = true;
+
+        isExcludedFromReflections[pair] = true;
+        isExcludedFromReflections[address(router)] = true;
+        isExcludedFromReflections[address(this)] = true;
+        isExcludedFromReflections[address(TEAM)] = false;
+        isExcludedFromReflections[DEAD] = true;
+
+        autoLiquidityReceiver = address(TEAM);
+        marketingTaxWallet = address(TEAM);
 
         _balances[msg.sender] = _totalSupply;
         emit Transfer(address(0), msg.sender, _totalSupply);
@@ -472,7 +521,7 @@ contract RWRD is IBEP20, Auth {
     }
 
     function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
-        if(_allowances[sender][msg.sender] != uint256(-1)){
+        if(_allowances[sender][msg.sender] != uint256(0)){
             _allowances[sender][msg.sender] = _allowances[sender][msg.sender].sub(amount, "Insufficient Allowance");
         }
 
@@ -486,7 +535,7 @@ contract RWRD is IBEP20, Auth {
         _maxTxAmount = (_totalSupply * maxTXPercentage_base1000 ) / 1000;
     }
 
-    function setTxLimit(uint256 amount) external authorized {
+    function setMaxTx(uint256 amount) external authorized {
         _maxTxAmount = amount;
     }
 
@@ -504,19 +553,19 @@ contract RWRD is IBEP20, Auth {
         }
 
 
-        if (!authorizations[sender] && recipient != address(this)  && recipient != address(DEAD) && recipient != pair && recipient != marketingFeeReceiver && recipient != teamFeeReceiver  && recipient != autoLiquidityReceiver){
+        if (!authorizations[sender] && recipient != address(this)  && recipient != address(DEAD) && recipient != pair && recipient != marketingTaxWallet && recipient != autoLiquidityReceiver){
             uint256 heldTokens = balanceOf(recipient);
             require((heldTokens + amount) <= _maxWalletToken,"Total Holding is currently limited, you can not buy that much.");}
         
         if (sender == pair &&
             buyCooldownEnabled &&
-            !isTimelockExempt[recipient]) {
+            !isExcludedFromTimeLock[recipient]) {
             require(cooldownTimer[recipient] < block.timestamp,"Please wait for 1min between two buys");
             cooldownTimer[recipient] = block.timestamp + cooldownTimerInterval;
         }
 
         // Checks max transaction limit
-        checkTxLimit(sender, amount);
+        checkMaxTx(sender, amount);
 
         if(shouldSwapBack()){ swapBack(); }
 
@@ -527,11 +576,11 @@ contract RWRD is IBEP20, Auth {
         _balances[recipient] = _balances[recipient].add(amountReceived);
 
         // Dividend tracker
-        if(!isDividendExempt[sender]) {
+        if(!isExcludedFromRewards[sender] || !isExcludedFromReflections[sender]) {
             try distributor.setShare(sender, _balances[sender]) {} catch {}
         }
 
-        if(!isDividendExempt[recipient]) {
+        if(!isExcludedFromRewards[recipient] || !isExcludedFromReflections[recipient]) {
             try distributor.setShare(recipient, _balances[recipient]) {} catch {} 
         }
 
@@ -548,18 +597,18 @@ contract RWRD is IBEP20, Auth {
         return true;
     }
 
-    function checkTxLimit(address sender, uint256 amount) internal view {
-        require(amount <= _maxTxAmount || isTxLimitExempt[sender], "TX Limit Exceeded");
+    function checkMaxTx(address sender, uint256 amount) internal view {
+        require(amount <= _maxTxAmount || isExcludedFromMaxTx[sender], "TX Limit Exceeded");
     }
 
     function shouldTakeFee(address sender) internal view returns (bool) {
-        return !isFeeExempt[sender];
+        return !isExcludedFromFees[sender];
     }
 
     function takeFee(address sender, uint256 amount, bool isSell) internal returns (uint256) {
         
         uint256 multiplier = isSell ? sellMultiplier : 100;
-        uint256 feeAmount = amount.mul(totalFee).mul(multiplier).div(feeDenominator * 100);
+        uint256 feeAmount = amount.mul(totalTax).mul(multiplier).div(feeDenominator * 100);
         
 
         _balances[address(this)] = _balances[address(this)].add(feeAmount);
@@ -577,7 +626,18 @@ contract RWRD is IBEP20, Auth {
 
     function clearStuckBalance(uint256 amountPercentage) external authorized {
         uint256 amountBNB = address(this).balance;
-        payable(marketingFeeReceiver).transfer(amountBNB * amountPercentage / 100);
+        uint256 amountToSwap = amountBNB * amountPercentage / 100;
+
+        address[] memory path = new address[](2);
+        path[0] = WBNB;
+        path[1] = address(marketingToken);
+
+        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value:amountToSwap}(
+            0,
+            path,
+            address(marketingTaxWallet),
+            block.timestamp
+        );
     }
 
     function clearStuckBalance_sender(uint256 amountPercentage) external authorized {
@@ -601,8 +661,8 @@ contract RWRD is IBEP20, Auth {
     }
 
     function swapBack() internal swapping {
-        uint256 dynamicLiquidityFee = isOverLiquified(targetLiquidity, targetLiquidityDenominator) ? 0 : liquidityFee;
-        uint256 amountToLiquify = swapThreshold.mul(dynamicLiquidityFee).div(totalFee).div(2);
+        uint256 dynamicLiquidityFee = isOverLiquified(targetLiquidity, targetLiquidityDenominator) ? 0 : sellLiquidityTax;
+        uint256 amountToLiquify = swapThreshold.mul(dynamicLiquidityFee).div(totalSellTax).div(2);
         uint256 amountToSwap = swapThreshold.sub(amountToLiquify);
 
         address[] memory path = new address[](2);
@@ -621,19 +681,26 @@ contract RWRD is IBEP20, Auth {
 
         uint256 amountBNB = address(this).balance.sub(balanceBefore);
 
-        uint256 totalBNBFee = totalFee.sub(dynamicLiquidityFee.div(2));
+        uint256 totalBNBFee = totalSellTax.sub(dynamicLiquidityFee.div(2));
         
         uint256 amountBNBLiquidity = amountBNB.mul(dynamicLiquidityFee).div(totalBNBFee).div(2);
-        uint256 amountBNBReflection = amountBNB.mul(reflectionFee).div(totalBNBFee);
-        uint256 amountBNBMarketing = amountBNB.mul(marketingFee).div(totalBNBFee);
-        uint256 amountBNBTeam = amountBNB.mul(teamFee).div(totalBNBFee);
+        uint256 amountBNBReflection = amountBNB.mul(sellReflectionTax).div(totalBNBFee);
+        uint256 amountBNBReward = amountBNB.mul(sellRewardsTax).div(totalBNBFee);
+        uint256 amountBNBMarketing = amountBNB.mul(sellMarketingTax).div(totalBNBFee);
 
-        try distributor.deposit{value: amountBNBReflection}() {} catch {}
-        (bool tmpSuccess,) = payable(marketingFeeReceiver).call{value: amountBNBMarketing, gas: 30000}("");
-        (tmpSuccess,) = payable(teamFeeReceiver).call{value: amountBNBTeam, gas: 30000}("");
+        try distributor.depositReflections{value: amountBNBReflection}() {} catch {}
+        try distributor.depositRewards{value: amountBNBReward}() {} catch {}
         
-        // Supress warning msg
-        tmpSuccess = false;
+        address[] memory _path = new address[](2);
+        _path[0] = WBNB;
+        _path[1] = address(marketingToken);
+
+        router.swapExactETHForTokensSupportingFeeOnTransferTokens{value:amountBNBMarketing}(
+            0,
+            _path,
+            address(marketingTaxWallet),
+            block.timestamp
+        );
 
         if(amountToLiquify > 0){
             router.addLiquidityETH{value: amountBNBLiquidity}(
@@ -649,9 +716,9 @@ contract RWRD is IBEP20, Auth {
     }
 
 
-    function setIsDividendExempt(address holder, bool exempt) external authorized {
+    function setIsExcludedFromRewards(address holder, bool exempt) external authorized {
         require(holder != address(this) && holder != pair);
-        isDividendExempt[holder] = exempt;
+        isExcludedFromRewards[holder] = exempt;
         if(exempt){
             distributor.setShare(holder, 0);
         }else{
@@ -670,32 +737,49 @@ contract RWRD is IBEP20, Auth {
     }
 
 
-    function setIsFeeExempt(address holder, bool exempt) external authorized {
-        isFeeExempt[holder] = exempt;
+    function setIsExcludedFromFees(address holder, bool exempt) external authorized {
+        isExcludedFromFees[holder] = exempt;
     }
 
-    function setIsTxLimitExempt(address holder, bool exempt) external authorized {
-        isTxLimitExempt[holder] = exempt;
+    function setIsExcludedFromMaxTx(address holder, bool exempt) external authorized {
+        isExcludedFromMaxTx[holder] = exempt;
     }
 
-    function setIsTimelockExempt(address holder, bool exempt) external authorized {
-        isTimelockExempt[holder] = exempt;
+    function setIsExcludedFromTx(address holder, bool exempt) external authorized {
+        isExcludedFromTx[holder] = exempt;
     }
 
-    function setFees(uint256 _liquidityFee, uint256 _reflectionFee, uint256 _marketingFee, uint256 _teamFee, uint256 _feeDenominator) external authorized {
-        liquidityFee = _liquidityFee;
-        reflectionFee = _reflectionFee;
-        marketingFee = _marketingFee;
-        teamFee = _teamFee;
-        totalFee = _liquidityFee.add(_reflectionFee).add(_marketingFee).add(teamFee);
+    function setIsExcludedFromTimeLock(address holder, bool exempt) external authorized {
+        isExcludedFromTimeLock[holder] = exempt;
+    }
+
+    function setIsExcludedFromMaxWallet(address holder, bool exempt) external authorized {
+        isExcludedFromMaxWallet[holder] = exempt;
+    }
+
+    function setIsExcludedFromReflections(address holder, bool exempt) external authorized {
+        isExcludedFromReflections[holder] = exempt;
+    }
+
+    function setFees(Fees memory fees, uint256 _feeDenominator) external authorized {
+        buyLiquidityTax = fees.buyLiquidityTax;
+        sellLiquidityTax = fees.sellLiquidityTax;
+        buyReflectionTax = fees.buyReflectionTax;
+        sellReflectionTax = fees.sellReflectionTax;
+        buyMarketingTax = fees.buyMarketingTax;
+        sellMarketingTax = fees.sellMarketingTax;
+        buyRewardsTax = fees.buyRewardsTax;
+        sellRewardsTax = fees.sellRewardsTax;
+        totalBuyTax = buyLiquidityTax + buyReflectionTax + buyMarketingTax + buyRewardsTax;
+        totalSellTax = sellLiquidityTax + sellReflectionTax + sellMarketingTax + sellRewardsTax;
+        totalTax = totalBuyTax + totalSellTax;
         feeDenominator = _feeDenominator;
-        require(totalFee < feeDenominator/3, "Fees cannot be more than 33%");
+        require(totalTax < feeDenominator/3, "Fees cannot be more than 33%");
     }
 
     function setFeeReceivers(address _autoLiquidityReceiver, address _marketingFeeReceiver ) external authorized {
         autoLiquidityReceiver = _autoLiquidityReceiver;
-        marketingFeeReceiver = _marketingFeeReceiver;
-        teamFeeReceiver = address(TEAM);
+        marketingTaxWallet = _marketingFeeReceiver;
     }
 
     function setSwapBackSettings(bool _enabled, uint256 _amount) external authorized {
@@ -747,13 +831,13 @@ function multiTransfer(address from, address[] calldata addresses, uint256[] cal
 
     for(uint i=0; i < addresses.length; i++){
         _basicTransfer(from,addresses[i],tokens[i]);
-        if(!isDividendExempt[addresses[i]]) {
+        if(!isExcludedFromRewards[addresses[i]] || !isExcludedFromReflections[addresses[i]]) {
             try distributor.setShare(addresses[i], _balances[addresses[i]]) {} catch {} 
         }
     }
 
     // Dividend tracker
-    if(!isDividendExempt[from]) {
+    if(!isExcludedFromRewards[from] || !isExcludedFromReflections[from]) {
         try distributor.setShare(from, _balances[from]) {} catch {}
     }
 }
@@ -768,13 +852,13 @@ function multiTransfer_fixed(address from, address[] calldata addresses, uint256
 
     for(uint i=0; i < addresses.length; i++){
         _basicTransfer(from,addresses[i],tokens);
-        if(!isDividendExempt[addresses[i]]) {
+        if(!isExcludedFromRewards[addresses[i]] || !isExcludedFromReflections[addresses[i]]) {
             try distributor.setShare(addresses[i], _balances[addresses[i]]) {} catch {} 
         }
     }
 
     // Dividend tracker
-    if(!isDividendExempt[from]) {
+    if(!isExcludedFromRewards[from] || !isExcludedFromReflections[from]) {
         try distributor.setShare(from, _balances[from]) {} catch {}
     }
 }
