@@ -206,7 +206,7 @@ contract DividendDistributor is IDividendDistributor {
     }
 
     constructor (address reward_token, address token) {
-        router = IDEXRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
+        router = IDEXRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
         _token = msg.sender;
         Reward = IBEP20(reward_token);
         Token = IBEP20(token);
@@ -441,7 +441,7 @@ contract RWRD is IBEP20, Auth {
         TEAM = team_wallet;
         marketingToken = marketing_token;
 
-        router = IDEXRouter(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
+        router = IDEXRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
         pair = IDEXFactory(router.factory()).createPair(WBNB, address(this));
         _allowances[address(this)][address(router)] = uint256(-1);
 
