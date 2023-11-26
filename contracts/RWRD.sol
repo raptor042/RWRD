@@ -129,6 +129,25 @@ interface IDEXRouter {
         uint deadline
     ) external payable returns (uint amountToken, uint amountETH, uint liquidity);
 
+    function removeLiquidity(
+        address tokenA,
+        address tokenB,
+        uint liquidity,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountA, uint amountB);
+
+    function removeLiquidityETH(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountToken, uint amountETH);
+
     function swapExactTokensForTokensSupportingFeeOnTransferTokens(
         uint amountIn,
         uint amountOutMin,
@@ -351,7 +370,7 @@ contract DividendDistributor is IDividendDistributor {
 contract RWRD is IBEP20, Auth {
     using SafeMath for uint256;
 
-    address WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
+    address WBNB = 0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd;
     address DEAD = 0x000000000000000000000000000000000000dEaD;
     address ZERO = 0x0000000000000000000000000000000000000000;
     address TEAM;
@@ -362,8 +381,8 @@ contract RWRD is IBEP20, Auth {
     uint8 _decimals = 18;
     uint256 _totalSupply;
 
-    uint256 public _maxTxAmount = _totalSupply;
-    uint256 public _maxWalletToken = _totalSupply;
+    uint256 public _maxTxAmount;
+    uint256 public _maxWalletToken;
 
     mapping (address => uint256) _balances;
     mapping (address => mapping (address => uint256)) _allowances;
@@ -430,7 +449,10 @@ contract RWRD is IBEP20, Auth {
     ) Auth(msg.sender) {
         _name = name_;
         _symbol = symbol_;
-        _totalSupply = _supply;
+        _totalSupply = _supply * 10**18;
+
+        _maxTxAmount = _totalSupply;
+        _maxWalletToken = _totalSupply;
 
         liquidityTax = fees.liquidityTax;
         reflectionTax = fees.reflectionTax;
@@ -505,9 +527,9 @@ contract RWRD is IBEP20, Auth {
     }
 
     function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
-        if(_allowances[sender][msg.sender] != uint256(0)){
-            _allowances[sender][msg.sender] = _allowances[sender][msg.sender].sub(amount, "Insufficient Allowance");
-        }
+        require(_allowances[sender][msg.sender] >= amount, "Insufficent Amount");
+
+        _allowances[sender][msg.sender] -= amount;
 
         return _transferFrom(sender, recipient, amount);
     }
@@ -654,6 +676,10 @@ contract RWRD is IBEP20, Auth {
         path[1] = WBNB;
 
         uint256 balanceBefore = address(this).balance;
+
+        if(amountToSwap <= 0) {
+            return;
+        }
 
         router.swapExactTokensForETHSupportingFeeOnTransferTokens(
             amountToSwap,
